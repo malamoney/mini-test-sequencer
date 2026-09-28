@@ -20,11 +20,12 @@ classifiers = [
     "Topic :: Software Development :: Testing",
 ]
 
-[project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6", "build>=1.2"]
 
 [project.scripts]
 mini-seq = "mini_sequencer.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6"]
 
 [tool.setuptools.dynamic]
 version = { attr = "mini_sequencer.__version__" }

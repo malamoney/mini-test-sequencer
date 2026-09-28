@@ -18,25 +18,28 @@ CLI → config validation → sequencer → device client → TCP simulator
 
 ## Quickstart
 
-Requires Python 3.10 or newer.
+Requires [uv](https://docs.astral.sh/uv/getting-started/installation/). uv
+installs a suitable Python (3.10 or newer) if you don't have one.
 
 ```bash
 git clone https://github.com/malamoney/mini-test-sequencer.git
 cd mini-test-sequencer
-python -m venv .venv && source .venv/bin/activate
-python -m pip install -e '.[dev]'
+uv sync            # creates .venv with the package and dev tools, pinned by uv.lock
 
-mini-seq validate examples/sequence.yaml
+uv run mini-seq validate examples/sequence.yaml
 ```
+
+`uv run` runs a command inside the project environment. To type `mini-seq` on
+its own instead, activate the environment once with `source .venv/bin/activate`.
 
 Test one unit against the simulator:
 
 ```bash
 # Terminal 1: start the simulated device (Ctrl+C to stop).
-mini-seq simulator --host 127.0.0.1 --port 9000 --seed 42
+uv run mini-seq simulator --host 127.0.0.1 --port 9000 --seed 42
 
 # Terminal 2: run the example sequence against one unit.
-mini-seq run --serial DUT-0001 --config examples/sequence.yaml --db results.sqlite
+uv run mini-seq run --serial DUT-0001 --config examples/sequence.yaml --db results.sqlite
 ```
 
 ```text
@@ -61,7 +64,7 @@ Run a repeatable batch of 100 units and summarize it. The demo starts its own
 simulator on a free loopback port and stops it afterwards:
 
 ```bash
-mini-seq demo --units 100 --seed 42 --db demo.sqlite
+uv run mini-seq demo --units 100 --seed 42 --db demo.sqlite
 ```
 
 ```text
@@ -101,9 +104,9 @@ from the example file's.
 Summarize any database, optionally filtered:
 
 ```bash
-mini-seq summary --db demo.sqlite
-mini-seq summary --db demo.sqlite --since 2026-09-01 --until 2026-10-01T00:00:00Z
-mini-seq summary --db demo.sqlite --sequence basic_device_check --config-hash 8ff0 --json
+uv run mini-seq summary --db demo.sqlite
+uv run mini-seq summary --db demo.sqlite --since 2026-09-01 --until 2026-10-01T00:00:00Z
+uv run mini-seq summary --db demo.sqlite --sequence basic_device_check --config-hash 8ff0 --json
 ```
 
 ## Commands
@@ -119,7 +122,8 @@ mini-seq summary --db demo.sqlite --sequence basic_device_check --config-hash 8f
 | `mini-seq runs --db DB [--status S] [--limit N]` | List stored runs, newest first |
 | `mini-seq abort RUN_ID --db DB [--reason TEXT]` | Mark a stale `RUNNING` run `ABORTED` |
 
-`python -m mini_sequencer` works in place of `mini-seq`.
+Prefix each with `uv run` unless `.venv` is activated. `python -m mini_sequencer`
+works in place of `mini-seq`.
 
 ### Exit codes (`run`)
 
@@ -200,8 +204,8 @@ If the process is killed, its run stays `RUNNING`. Summaries list it as
 unfinished and leave it out of yield. To close it explicitly:
 
 ```bash
-mini-seq runs --db results.sqlite --status RUNNING
-mini-seq abort 1b2c3d4e --db results.sqlite --reason "bench power loss"
+uv run mini-seq runs --db results.sqlite --status RUNNING
+uv run mini-seq abort 1b2c3d4e --db results.sqlite --reason "bench power loss"
 ```
 
 Only `RUNNING` runs can be aborted; finished results are never changed.
@@ -220,12 +224,15 @@ Only `RUNNING` runs can be aborted; finished results are never changed.
 ## Development
 
 ```bash
-python -m pip install -e '.[dev]'
-pytest               # unit + integration tests (real sockets, temporary databases)
-ruff check .         # lint
-ruff format --check .
-python -m build      # sdist + wheel
+uv sync                      # install the package and dev tools from uv.lock
+uv run pytest                # unit + integration tests (real sockets, temporary databases)
+uv run ruff check .          # lint
+uv run ruff format --check .
+uv build                     # sdist + wheel into dist/
 ```
+
+Dependencies are pinned in `uv.lock`. After changing them in `pyproject.toml`,
+run `uv lock` and commit the updated lockfile.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), the wire protocol in
 [docs/protocol.md](docs/protocol.md), and the original plan in [PLAN.md](PLAN.md).

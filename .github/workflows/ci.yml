@@ -19,39 +19,38 @@ jobs:
         include:
           - os: macos-latest
             python-version: "3.13"
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v10.2.0
         with:
-          python-version: ${{ matrix.python-version }}
+          enable-cache: true
       - name: Install
-        run: python -m pip install -e ".[dev]"
+        # --locked fails if uv.lock is out of date with pyproject.toml.
+        run: uv sync --locked
       - name: Lint
         run: |
-          ruff check .
-          ruff format --check .
+          uv run ruff check .
+          uv run ruff format --check .
       - name: Test
-        run: pytest
+        run: uv run pytest
       - name: CLI smoke test
         run: |
-          mini-seq validate examples/sequence.yaml
-          mini-seq demo --units 20 --seed 1 --db smoke.sqlite --timeout 0.2
-          mini-seq summary --db smoke.sqlite
+          uv run mini-seq validate examples/sequence.yaml
+          uv run mini-seq demo --units 20 --seed 1 --db smoke.sqlite --timeout 0.2
+          uv run mini-seq summary --db smoke.sqlite
 
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v10.2.0
       - name: Build sdist and wheel
-        run: |
-          python -m pip install build
-          python -m build
+        run: uv build
       - name: Install wheel in a clean environment
         run: |
-          python -m venv /tmp/wheel-env
-          /tmp/wheel-env/bin/pip install dist/*.whl
+          uv venv --python 3.13 /tmp/wheel-env
+          uv pip install --python /tmp/wheel-env/bin/python dist/*.whl
           /tmp/wheel-env/bin/mini-seq --help
           /tmp/wheel-env/bin/mini-seq demo --units 10 --seed 1 --db /tmp/w.sqlite --timeout 0.2

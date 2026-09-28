@@ -4,18 +4,22 @@ Thanks for your interest. Issues and pull requests are welcome.
 
 ## Setup
 
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then:
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
-python -m pip install -e '.[dev]'
+uv sync
 ```
 
 ## Before opening a pull request
 
 ```bash
-ruff check .
-ruff format --check .
-pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run pytest
 ```
+
+If you change dependencies in `pyproject.toml`, run `uv lock` and commit
+`uv.lock`. CI fails if the lockfile is out of date.
 
 CI runs the same checks on Python 3.10–3.13 and builds the package.
 
