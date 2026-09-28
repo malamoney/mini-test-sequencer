@@ -1,0 +1,31 @@
+# Example test sequence for the bundled simulator.
+# Limits are inclusive: a measurement passes when it meets every configured bound.
+schema_version: 1
+name: basic_device_check
+device:
+  host: 127.0.0.1
+  port: 9000
+  timeout_s: 2.0
+execution:
+  stop_on_fail: false
+steps:
+  - id: supply_voltage
+    command: measure
+    channel: voltage
+    unit: V
+    limits:
+      min: 4.75
+      max: 5.25
+  - id: idle_current
+    command: measure
+    channel: current
+    unit: mA
+    limits:
+      max: 120.0
+  - id: temperature
+    command: measure
+    channel: temperature
+    unit: C
+    limits:
+      min: 15.0
+      max: 45.0
