@@ -111,6 +111,7 @@ class ResultStore(Protocol):
     ) -> None: ...
     def get_run(self, run_id: str) -> RunRecord | None: ...
     def list_runs(self, status: RunStatus | None = None, limit: int = 50) -> list[RunRecord]: ...
+    def get_runs(self, flt: SummaryFilter) -> list[RunRecord]: ...
     def abort_stale_run(self, run_id: str, ended_at: str, reason: str) -> RunRecord: ...
     def summarize(self, flt: SummaryFilter) -> list[GroupSummary]: ...
     def close(self) -> None: ...
@@ -278,6 +279,23 @@ class SQLiteResultStore:
         query += " ORDER BY started_at DESC, id LIMIT ?"
         params.append(limit)
         return [_run_from_row(row) for row in self._conn.execute(query, params)]
+
+    def get_runs(self, flt: SummaryFilter) -> list[RunRecord]:
+        """Runs matching ``flt`` with their steps, oldest first."""
+        where, params = _run_filter(flt)
+        runs = {
+            row["id"]: _run_from_row(row)
+            for row in self._conn.execute(
+                f"SELECT * FROM runs r WHERE {where} ORDER BY r.started_at, r.id", params
+            )
+        }
+        for row in self._conn.execute(
+            f"""SELECT s.* FROM step_results s JOIN runs r ON r.id = s.run_id
+                WHERE {where} ORDER BY s.run_id, s.position""",
+            params,
+        ):
+            runs[row["run_id"]].steps.append(_step_from_row(row))
+        return list(runs.values())
 
     def summarize(self, flt: SummaryFilter) -> list[GroupSummary]:
         where, params = _run_filter(flt)

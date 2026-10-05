@@ -16,6 +16,7 @@ from pathlib import Path
 from mini_sequencer import __version__
 from mini_sequencer.config import ConfigError, config_hash, load_config
 from mini_sequencer.demo import default_config, run_demo
+from mini_sequencer.html_report import render_html
 from mini_sequencer.models import RunStatus
 from mini_sequencer.reporting import (
     HASH_DISPLAY_CHARS,
@@ -150,12 +151,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("summary", help="yield, failure Pareto, and error summary")
     p.add_argument("--db", type=Path, required=True, help="SQLite result database")
-    p.add_argument("--since", type=_timestamp, help="include runs started at or after (UTC)")
-    p.add_argument("--until", type=_timestamp, help="include runs started before (UTC)")
-    p.add_argument("--sequence", help="only this sequence name")
-    p.add_argument("--config-hash", help="only this configuration hash (prefix allowed)")
+    _add_filter_args(p)
     p.add_argument("--json", action="store_true", help="print JSON instead of text")
     p.set_defaults(func=cmd_summary)
+
+    p = sub.add_parser(
+        "html",
+        help="write a self-contained HTML results page",
+        description="Write the summary, charts, and run log to one HTML file that works offline.",
+    )
+    p.add_argument("--db", type=Path, required=True, help="SQLite result database")
+    p.add_argument("--out", type=Path, required=True, help="HTML file to write (replaced)")
+    _add_filter_args(p)
+    p.set_defaults(func=cmd_html)
 
     p = sub.add_parser("report", help="show one stored run")
     p.add_argument("run_id", help="run ID (unique prefix allowed)")
@@ -180,6 +188,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.set_defaults(func=cmd_abort)
     return parser
+
+
+def _add_filter_args(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--since", type=_timestamp, help="include runs started at or after (UTC)")
+    p.add_argument("--until", type=_timestamp, help="include runs started before (UTC)")
+    p.add_argument("--sequence", help="only this sequence name")
+    p.add_argument("--config-hash", help="only this configuration hash (prefix allowed)")
+
+
+def _summary_filter(args: argparse.Namespace) -> SummaryFilter:
+    return SummaryFilter(
+        since=args.since,
+        until=args.until,
+        sequence_name=args.sequence,
+        config_hash=args.config_hash,
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -264,15 +288,26 @@ def cmd_demo(args: argparse.Namespace) -> int:
 
 def cmd_summary(args: argparse.Namespace) -> int:
     _require_db(args.db)
-    flt = SummaryFilter(
-        since=args.since,
-        until=args.until,
-        sequence_name=args.sequence,
-        config_hash=args.config_hash,
-    )
+    flt = _summary_filter(args)
     with SQLiteResultStore(args.db) as store:
         groups = store.summarize(flt)
     print(summary_to_json(groups) if args.json else format_summary(groups, flt, str(args.db)))
+    return EXIT_PASS
+
+
+def cmd_html(args: argparse.Namespace) -> int:
+    _require_db(args.db)
+    flt = _summary_filter(args)
+    with SQLiteResultStore(args.db) as store:
+        groups = store.summarize(flt)
+        runs = store.get_runs(flt)
+    page = render_html(groups, runs, flt, source=args.db.name, generated_at=utc_now())
+    try:
+        args.out.write_text(page, encoding="utf-8")
+    except OSError as exc:
+        print(f"error: cannot write {args.out}: {exc.strerror or exc}", file=sys.stderr)
+        return EXIT_ERROR
+    print(f"wrote {args.out} ({len(runs)} runs)")
     return EXIT_PASS
 
 

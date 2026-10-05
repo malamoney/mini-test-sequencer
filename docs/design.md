@@ -12,6 +12,7 @@
 | `sequencer.py` | Run steps in order, evaluate limits, assign outcomes, persist progress |
 | `storage.py` | `ResultStore` interface and its SQLite implementation, including summary queries |
 | `reporting.py` | Yield and Pareto math; text and JSON formatting |
+| `html_report.py` | Self-contained HTML results page built from the summary and stored runs (template in `templates/results.html`) |
 | `demo.py` | Seeded plan of unit profiles and the batch runner |
 | `cli.py` | `argparse` commands and exit codes |
 

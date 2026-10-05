@@ -40,6 +40,7 @@ jobs:
           uv run mini-seq validate examples/sequence.yaml
           uv run mini-seq demo --units 20 --seed 1 --db smoke.sqlite --timeout 0.2
           uv run mini-seq summary --db smoke.sqlite
+          uv run mini-seq html --db smoke.sqlite --out smoke.html
 
   build:
     runs-on: ubuntu-latest
