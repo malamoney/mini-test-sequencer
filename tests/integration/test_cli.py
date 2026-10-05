@@ -151,6 +151,45 @@ def test_summary_rejects_bad_timestamp():
         main(["summary", "--db", "x", "--since", "yesterday"])
 
 
+def test_html_writes_page_matching_summary(simulator, tmp_path, capsys):
+    db = tmp_path / "r.sqlite"
+    run_cli(simulator, db, "SN-P")
+    simulator.configure("overcurrent", 1)
+    run_cli(simulator, db, "SN-F")
+    capsys.readouterr()
+
+    assert main(["summary", "--db", str(db), "--json"]) == EXIT_PASS
+    summary = json.loads(capsys.readouterr().out)
+
+    out = tmp_path / "results.html"
+    assert main(["html", "--db", str(db), "--out", str(out)]) == EXIT_PASS
+    assert "(2 runs)" in capsys.readouterr().out
+    page = out.read_text(encoding="utf-8")
+    data = json.loads(page.split('id="results-data">', 1)[1].split("</script>", 1)[0])
+    for key in ("status_counts", "run_yield_percent", "failure_pareto", "errors_by_category"):
+        assert data["groups"][0][key] == summary[0][key]
+    assert [r["serial"] for r in data["runs"]] == ["SN-P", "SN-F"]
+    # Self-contained: nothing is fetched from the network.
+    assert "http://" not in page and "https://" not in page
+
+
+def test_html_filter_and_errors(simulator, tmp_path, capsys):
+    db = tmp_path / "r.sqlite"
+    run_cli(simulator, db)
+    out = tmp_path / "results.html"
+    assert main(["html", "--db", str(db), "--out", str(out), "--until", "2000-01-01"]) == 0
+    assert "(0 runs)" in capsys.readouterr().out
+
+    missing = tmp_path / "nope.sqlite"
+    assert main(["html", "--db", str(missing), "--out", str(out)]) == EXIT_ERROR
+    assert "does not exist" in capsys.readouterr().err
+    assert not missing.exists()
+
+    bad_out = tmp_path / "no-such-dir" / "results.html"
+    assert main(["html", "--db", str(db), "--out", str(bad_out)]) == EXIT_ERROR
+    assert "cannot write" in capsys.readouterr().err
+
+
 def test_report_runs_and_abort_recovery(tmp_path, capsys):
     db = tmp_path / "r.sqlite"
     with SQLiteResultStore(db) as store:

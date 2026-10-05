@@ -173,3 +173,25 @@ def test_summary_filters(store):
     assert total(SummaryFilter(sequence_name="other")) == 1
     assert total(SummaryFilter(config_hash="FF")) == 1
     assert store.summarize(SummaryFilter(sequence_name="none")) == []
+
+
+def test_get_runs_returns_steps_oldest_first_and_filters(store):
+    P, F = StepStatus.PASS, StepStatus.FAIL
+    finished(
+        store,
+        "new",
+        RunStatus.FAIL,
+        [make_step(1, "a", P), make_step(2, "b", F)],
+        started_at="2026-02-01T00:00:00.000000+00:00",
+    )
+    finished(store, "old", RunStatus.PASS, [make_step(1, "a", P)])
+    finished(store, "other", RunStatus.PASS, name="other", config_hash="ffff")
+
+    runs = store.get_runs(SummaryFilter())
+    assert [r.id for r in runs] == ["old", "other", "new"]  # ties by run ID
+    assert [(s.position, s.step_id, s.status) for s in runs[2].steps] == [(1, "a", P), (2, "b", F)]
+    assert runs[1].steps == []
+
+    since = "2026-01-15T00:00:00.000000+00:00"
+    assert [r.id for r in store.get_runs(SummaryFilter(since=since))] == ["new"]
+    assert [r.id for r in store.get_runs(SummaryFilter(config_hash="FF"))] == ["other"]

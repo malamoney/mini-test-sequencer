@@ -109,6 +109,21 @@ uv run mini-seq summary --db demo.sqlite --since 2026-09-01 --until 2026-10-01T0
 uv run mini-seq summary --db demo.sqlite --sequence basic_device_check --config-hash 8ff0 --json
 ```
 
+Or write the same results as a web page you can open in a browser:
+
+```bash
+uv run mini-seq html --db demo.sqlite --out results.html
+open results.html   # macOS; use xdg-open on Linux
+```
+
+The page shows run yield, run outcomes, the failure Pareto, execution errors,
+every reading plotted against its limits, and a run log you can filter by status
+or serial and expand to see each step. It is one file with the results embedded
+and no network requests, so it works offline and can be archived or attached to
+a ticket. It is a snapshot: run the command again to pick up new runs. It takes
+the same filters as `summary` and shows the same figures. When the database
+holds several sequences or configurations, a selector switches between them.
+
 ## Commands
 
 | Command | Purpose |
@@ -118,6 +133,7 @@ uv run mini-seq summary --db demo.sqlite --sequence basic_device_check --config-
 | `mini-seq run --serial SN --config CONFIG --db DB [--host] [--port] [--timeout]` | Test one unit |
 | `mini-seq demo --db DB [--units N] [--seed S] [--timeout T] [--config CONFIG]` | Seeded batch run |
 | `mini-seq summary --db DB [--since] [--until] [--sequence] [--config-hash] [--json]` | Yield, Pareto, errors |
+| `mini-seq html --db DB --out FILE [--since] [--until] [--sequence] [--config-hash]` | Write an offline HTML results page |
 | `mini-seq report RUN_ID --db DB` | Show one stored run (ID prefix allowed) |
 | `mini-seq runs --db DB [--status S] [--limit N]` | List stored runs, newest first |
 | `mini-seq abort RUN_ID --db DB [--reason TEXT]` | Mark a stale `RUNNING` run `ABORTED` |
@@ -217,7 +233,7 @@ Only `RUNNING` runs can be aborted; finished results are never changed.
 | `cannot connect to 127.0.0.1:9000: Connection refused` (exit 2) | The simulator is not running, or is on another port. Start it, or pass `--port`. |
 | `cannot listen on 127.0.0.1:9000: Address already in use` | Another simulator is running. Stop it or use `--port 0` for any free port. |
 | `no reply to 'measure' within 2 s` | The device is stalled (for example `--profile timeout`). Raise `device.timeout_s` only if the device is really slow. |
-| `result database ... does not exist` | `summary`, `report`, `runs`, and `abort` never create a database. Check the `--db` path. |
+| `result database ... does not exist` | `summary`, `html`, `report`, `runs`, and `abort` never create a database. Check the `--db` path. |
 | `... is not a mini-sequencer result database` | `--db` points at some other SQLite file. |
 | Summary shows two groups for one sequence | The limits, stop rule, or timeout changed between runs, so the configuration hash differs. This is intentional. |
 
@@ -240,7 +256,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md), the wire protocol in
 ## Scope
 
 Out of scope for this version: PostgreSQL, testing several units in parallel, a
-web dashboard, real hardware drivers, and production deployment. Storage sits
+live web dashboard (`mini-seq html` writes a static page instead), real hardware
+drivers, and production deployment. Storage sits
 behind a small `ResultStore` interface so another database can be added without
 touching the sequencer.
 

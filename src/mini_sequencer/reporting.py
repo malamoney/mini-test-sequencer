@@ -131,7 +131,7 @@ def format_run_list(runs: list[RunRecord]) -> str:
     return "\n".join(_table(["Run ID", "Started (UTC)", "Serial", "Sequence", "Status"], rows))
 
 
-def _describe_filter(flt: SummaryFilter) -> str:
+def describe_filter(flt: SummaryFilter) -> str:
     parts = []
     if flt.since:
         parts.append(f"since {flt.since}")
@@ -145,7 +145,7 @@ def _describe_filter(flt: SummaryFilter) -> str:
 
 
 def format_summary(groups: list[GroupSummary], flt: SummaryFilter, source: str) -> str:
-    lines = [f"Summary of {source} ({_describe_filter(flt)})"]
+    lines = [f"Summary of {source} ({describe_filter(flt)})"]
     if not groups:
         lines += ["", "No runs match."]
         return "\n".join(lines)
@@ -199,7 +199,8 @@ def format_group(group: GroupSummary) -> list[str]:
     return lines
 
 
-def summary_to_json(groups: list[GroupSummary]) -> str:
+def summary_to_dicts(groups: list[GroupSummary]) -> list[dict]:
+    """JSON-ready summary groups, as printed by ``summary --json``."""
     out = []
     for g in groups:
         completed = sum(g.status_counts[s] for s in COMPLETED_RUN_STATUSES)
@@ -214,4 +215,8 @@ def summary_to_json(groups: list[GroupSummary]) -> str:
                 "errors_by_category": dict(g.errors_by_category),
             }
         )
-    return json.dumps(out, indent=2)
+    return out
+
+
+def summary_to_json(groups: list[GroupSummary]) -> str:
+    return json.dumps(summary_to_dicts(groups), indent=2)
